@@ -9,9 +9,11 @@ export function BlogCard({ blog }: { blog: Blog }) {
     <Link href={`/blog/${blog.slug}`} className="block">
       <article className="card group">
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-sm font-medium shrink-0">
-            {(blog.author?.name || blog.author?.email || '?').charAt(0).toUpperCase()}
-          </div>
+          <img
+            src="/default-avatar.svg"
+            alt={blog.author?.name || 'User'}
+            className="w-8 h-8 rounded-full shrink-0"
+          />
           <div className="min-w-0">
             <span className="text-sm font-medium">{blog.author?.name || blog.author?.email}</span>
             <span className="text-xs text-[var(--color-text-secondary)] ml-2">

@@ -96,9 +96,11 @@ export default function BlogDetailPage() {
           <h1 className="text-3xl md:text-4xl font-bold mb-4">{blog.title}</h1>
 
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white font-medium shrink-0">
-              {(blog.author?.name || blog.author?.email || '?').charAt(0).toUpperCase()}
-            </div>
+            <img
+              src="/default-avatar.svg"
+              alt={blog.author?.name || 'User'}
+              className="w-10 h-10 rounded-full shrink-0"
+            />
             <div>
               <div className="font-medium">{blog.author?.name || blog.author?.email}</div>
               <div className="text-sm text-[var(--color-text-secondary)]">
@@ -151,12 +153,12 @@ export default function BlogDetailPage() {
         <CommentForm blogId={blog.id} onCommentAdded={handleCommentAdded} />
 
         <div className="space-y-4 mt-6">
-          {blog.comments.length === 0 && (
+          {(blog.comments ?? []).length === 0 && (
             <p className="text-[var(--color-text-secondary)] text-center py-8">
               No comments yet. Be the first to share your thoughts!
             </p>
           )}
-          {blog.comments.map((comment) => (
+          {(blog.comments ?? []).map((comment) => (
             <CommentItem key={comment.id} comment={comment} />
           ))}
         </div>
