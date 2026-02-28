@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email        String    @unique @db.VarChar
+  name         String    @db.VarChar
+  passwordHash String    @db.VarChar
+  createdAt    DateTime  @default(now()) @db.Timestamp(6)
+  blogs        Blog[]
+  comments     Comment[]
+  likes        Like[]
+
+  @@map("users")
+}
+
+model Blog {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title       String    @db.VarChar
+  content     String
+  summary     String?   @db.VarChar(300)
+  excerpt     String?   @db.VarChar(300)
+  isPublished Boolean   @default(false)
+  slug        String    @unique @db.VarChar
+  authorId    String    @db.Uuid
+  createdAt   DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+  likes       Like[]
+
+  @@map("blogs")
+}
+
+model Comment {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  content   String
+  blogId    String   @db.Uuid
+  authorId  String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  blog      Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model Like {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  blogId    String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  blog      Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([blogId, userId])
+  @@map("likes")
+}
