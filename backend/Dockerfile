@@ -2,20 +2,20 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY prisma ./prisma
 RUN npx prisma generate
 
 COPY . .
-RUN npm run build
+RUN npx nest build && ls -la dist/
 
 FROM node:20-alpine
 
 WORKDIR /app
 
-COPY --from=build /app/package*.json ./
+COPY --from=build /app/package.json /app/package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY --from=build /app/dist ./dist
