@@ -1,7 +1,7 @@
 export interface Author {
   id: string;
   name: string;
-  email?: string;
+  email: string;
 }
 
 export interface Blog {
@@ -10,6 +10,7 @@ export interface Blog {
   slug: string;
   content: string;
   excerpt?: string;
+  summary?: string;
   isPublished: boolean;
   publishedAt: string | null;
   createdAt: string;

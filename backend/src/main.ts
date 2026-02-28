@@ -1,11 +1,23 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const logger = new Logger('Bootstrap');
+
+  const required = ['DATABASE_URL', 'JWT_SECRET'];
+  for (const key of required) {
+    if (!process.env[key]) {
+      logger.error(`Missing required environment variable: ${key}`);
+      process.exit(1);
+    }
+  }
+
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log'],
+  });
 
   app.useGlobalFilters(new AllExceptionsFilter());
 
@@ -14,6 +26,7 @@ async function bootstrap() {
     'http://127.0.0.1:3000',
     process.env.FRONTEND_URL,
   ].filter((o): o is string => Boolean(o));
+
   app.enableCors({
     origin: allowedOrigins.length > 0 ? allowedOrigins : true,
     credentials: true,
@@ -31,7 +44,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 4000;
   await app.listen(port);
-  console.log(`Server running on http://localhost:${port}`);
+  logger.log(`Server running on http://localhost:${port}`);
 }
 
 bootstrap();

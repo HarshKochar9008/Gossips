@@ -1,60 +1,61 @@
 import {
   Injectable,
   NotFoundException,
-  ServiceUnavailableException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
-import { Comment } from '../entities';
 
 @Injectable()
 export class CommentsService {
-  constructor(
-    @InjectRepository(Comment)
-    private readonly commentRepo: Repository<Comment>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(blogId: string, dto: CreateCommentDto, userId: string) {
-    const comment = this.commentRepo.create({
-      content: dto.content,
-      blogId,
-      authorId: userId,
+    const blog = await this.prisma.blog.findUnique({
+      where: { id: blogId },
     });
-    await this.commentRepo.save(comment);
-    return this.toResponse(comment);
+    if (!blog) throw new NotFoundException('Blog not found');
+
+    const comment = await this.prisma.comment.create({
+      data: {
+        content: dto.content,
+        blogId,
+        authorId: userId,
+      },
+      include: {
+        author: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    return {
+      id: comment.id,
+      content: comment.content,
+      author: comment.author,
+      createdAt: comment.createdAt,
+    };
   }
 
   async findByBlog(blogId: string) {
-    const comments = await this.commentRepo.find({
+    const comments = await this.prisma.comment.findMany({
       where: { blogId },
-      order: { createdAt: 'DESC' },
-      relations: ['author'],
+      orderBy: { createdAt: 'desc' },
+      include: {
+        author: { select: { id: true, name: true, email: true } },
+      },
     });
+
     return comments.map((c) => ({
       id: c.id,
       content: c.content,
-      authorId: c.authorId,
-      authorName: (c.author as { name?: string })?.name ?? 'Anonymous',
+      author: c.author,
       createdAt: c.createdAt,
     }));
   }
 
   async delete(commentId: string, userId: string) {
-    const comment = await this.commentRepo.findOne({
+    const comment = await this.prisma.comment.findFirst({
       where: { id: commentId, authorId: userId },
     });
     if (!comment) throw new NotFoundException('Comment not found');
-    await this.commentRepo.remove(comment);
-  }
-
-  private toResponse(comment: Comment) {
-    return {
-      id: comment.id,
-      content: comment.content,
-      blogId: comment.blogId,
-      authorId: comment.authorId,
-      createdAt: comment.createdAt,
-    };
+    await this.prisma.comment.delete({ where: { id: commentId } });
   }
 }

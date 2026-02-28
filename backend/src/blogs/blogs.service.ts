@@ -1,109 +1,154 @@
 import {
   Injectable,
   NotFoundException,
-  ServiceUnavailableException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import slugify from 'slugify';
+import { PrismaService } from '../prisma/prisma.service';
+import { BlogSummaryService } from '../blog-jobs/blog-summary.service';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
-import { BlogSummaryService } from '../blog-jobs/blog-summary.service';
-import { Blog } from '../entities';
+
+const AUTHOR_SELECT = { id: true, name: true, email: true } as const;
+const BLOG_INCLUDE = {
+  author: { select: AUTHOR_SELECT },
+  _count: { select: { comments: true, likes: true } },
+} as const;
 
 @Injectable()
 export class BlogsService {
   constructor(
-    @InjectRepository(Blog)
-    private readonly blogRepo: Repository<Blog>,
+    private readonly prisma: PrismaService,
     private readonly blogSummaryService: BlogSummaryService,
   ) {}
 
-  private generateSlug(title: string, existingId?: string): string {
+  private generateSlug(title: string, suffix?: string): string {
     const base = slugify(title, { lower: true, strict: true }) || 'blog';
-    const suffix = existingId
-      ? existingId.slice(0, 8)
-      : Math.random().toString(36).slice(2, 10);
-    return `${base}-${suffix}`;
+    const id = suffix || Math.random().toString(36).slice(2, 10);
+    return `${base}-${id}`;
   }
 
   async create(dto: CreateBlogDto, userId: string) {
-    const blog = this.blogRepo.create({
-      title: dto.title,
-      content: dto.content,
-      summary: dto.summary ?? null,
-      excerpt: dto.excerpt ?? null,
-      isPublished: dto.isPublished ?? false,
-      authorId: userId,
+    const slug = this.generateSlug(dto.title);
+    const blog = await this.prisma.blog.create({
+      data: {
+        title: dto.title,
+        content: dto.content,
+        summary: dto.summary ?? null,
+        excerpt: dto.excerpt ?? null,
+        isPublished: dto.isPublished ?? false,
+        slug,
+        authorId: userId,
+      },
+      include: BLOG_INCLUDE,
     });
-    blog.slug = this.generateSlug(dto.title);
-    await this.blogRepo.save(blog);
+
     this.blogSummaryService.enqueueGenerateSummary(blog.id);
     return this.toResponse(blog);
   }
 
   async findAllByAuthor(userId: string) {
-    const blogs = await this.blogRepo.find({
+    const blogs = await this.prisma.blog.findMany({
       where: { authorId: userId },
-      order: { updatedAt: 'DESC' },
-      relations: ['comments', 'likes', 'author'],
+      orderBy: { updatedAt: 'desc' },
+      include: BLOG_INCLUDE,
     });
     return blogs.map((b) => this.toResponse(b));
   }
 
   async findOneByAuthor(id: string, userId: string) {
-    const blog = await this.blogRepo.findOne({
+    const blog = await this.prisma.blog.findFirst({
       where: { id, authorId: userId },
-      relations: ['comments', 'likes', 'author'],
+      include: BLOG_INCLUDE,
     });
     if (!blog) throw new NotFoundException('Blog not found');
     return this.toResponse(blog);
   }
 
   async update(id: string, dto: UpdateBlogDto, userId: string) {
-    const blog = await this.blogRepo.findOne({
+    const existing = await this.prisma.blog.findFirst({
       where: { id, authorId: userId },
     });
-    if (!blog) throw new NotFoundException('Blog not found');
+    if (!existing) throw new NotFoundException('Blog not found');
+
+    const data: Record<string, unknown> = {};
     if (dto.title !== undefined) {
-      blog.title = dto.title;
-      blog.slug = this.generateSlug(dto.title, blog.id);
+      data.title = dto.title;
+      data.slug = this.generateSlug(dto.title, existing.id.slice(0, 8));
     }
-    if (dto.content !== undefined) blog.content = dto.content;
-    if (dto.summary !== undefined) blog.summary = dto.summary;
-    if (dto.excerpt !== undefined) blog.excerpt = dto.excerpt;
-    if (dto.isPublished !== undefined) blog.isPublished = dto.isPublished;
-    await this.blogRepo.save(blog);
-    this.blogSummaryService.enqueueGenerateSummary(blog.id);
+    if (dto.content !== undefined) data.content = dto.content;
+    if (dto.summary !== undefined) data.summary = dto.summary;
+    if (dto.excerpt !== undefined) data.excerpt = dto.excerpt;
+    if (dto.isPublished !== undefined) data.isPublished = dto.isPublished;
+
+    const blog = await this.prisma.blog.update({
+      where: { id },
+      data,
+      include: BLOG_INCLUDE,
+    });
+
+    if (dto.content !== undefined) {
+      this.blogSummaryService.enqueueGenerateSummary(blog.id);
+    }
+
     return this.toResponse(blog);
   }
 
   async delete(id: string, userId: string) {
-    const result = await this.blogRepo.delete({ id, authorId: userId });
-    if (result.affected === 0) throw new NotFoundException('Blog not found');
-  }
-
-  async togglePublish(id: string, userId: string) {
-    const blog = await this.blogRepo.findOne({
+    const blog = await this.prisma.blog.findFirst({
       where: { id, authorId: userId },
     });
     if (!blog) throw new NotFoundException('Blog not found');
-    blog.isPublished = !blog.isPublished;
-    await this.blogRepo.save(blog);
-    return this.toResponse(blog);
+    await this.prisma.blog.delete({ where: { id } });
+  }
+
+  async togglePublish(id: string, userId: string) {
+    const blog = await this.prisma.blog.findFirst({
+      where: { id, authorId: userId },
+    });
+    if (!blog) throw new NotFoundException('Blog not found');
+
+    const updated = await this.prisma.blog.update({
+      where: { id },
+      data: { isPublished: !blog.isPublished },
+      include: BLOG_INCLUDE,
+    });
+    return this.toResponse(updated);
   }
 
   async getPublicFeed(page: number = 1, limit: number = 10) {
-    const [blogs, total] = await this.blogRepo.findAndCount({
-      where: { isPublished: true },
-      order: { updatedAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-      select: ['id', 'title', 'summary', 'excerpt', 'slug', 'updatedAt'],
-    });
+    const skip = (page - 1) * limit;
+
+    const [blogs, total] = await Promise.all([
+      this.prisma.blog.findMany({
+        where: { isPublished: true },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          excerpt: true,
+          summary: true,
+          isPublished: true,
+          createdAt: true,
+          updatedAt: true,
+          authorId: true,
+          author: { select: AUTHOR_SELECT },
+          _count: { select: { comments: true, likes: true } },
+        },
+      }),
+      this.prisma.blog.count({ where: { isPublished: true } }),
+    ]);
+
     const totalPages = Math.ceil(total / limit);
+
     return {
-      blogs: blogs.map((b) => this.toResponse(b)),
+      blogs: blogs.map((b) => ({
+        ...b,
+        content: undefined,
+        publishedAt: b.createdAt,
+      })),
       pagination: {
         page,
         limit,
@@ -116,14 +161,39 @@ export class BlogsService {
   }
 
   async getPublicBlogBySlug(slug: string, userId?: string) {
-    const blog = await this.blogRepo.findOne({
+    const blog = await this.prisma.blog.findFirst({
       where: { slug, isPublished: true },
+      include: {
+        ...BLOG_INCLUDE,
+        comments: {
+          orderBy: { createdAt: 'desc' },
+          include: { author: { select: AUTHOR_SELECT } },
+        },
+      },
     });
     if (!blog) throw new NotFoundException('Blog not found');
-    return this.toResponse(blog);
+
+    let hasLiked = false;
+    if (userId) {
+      const like = await this.prisma.like.findUnique({
+        where: { blogId_userId: { blogId: blog.id, userId } },
+      });
+      hasLiked = !!like;
+    }
+
+    return {
+      ...this.toResponse(blog),
+      comments: blog.comments.map((c) => ({
+        id: c.id,
+        content: c.content,
+        author: c.author,
+        createdAt: c.createdAt,
+      })),
+      hasLiked,
+    };
   }
 
-  private toResponse(blog: Blog) {
+  private toResponse(blog: any) {
     return {
       id: blog.id,
       title: blog.title,
@@ -135,13 +205,9 @@ export class BlogsService {
       authorId: blog.authorId,
       createdAt: blog.createdAt,
       updatedAt: blog.updatedAt,
-      author: blog.author
-        ? { id: blog.author.id, name: blog.author.name, email: blog.author.email }
-        : undefined,
-      _count: {
-        comments: blog.comments?.length ?? 0,
-        likes: blog.likes?.length ?? 0,
-      },
+      publishedAt: blog.isPublished ? blog.createdAt : null,
+      author: blog.author,
+      _count: blog._count ?? { comments: 0, likes: 0 },
     };
   }
 }

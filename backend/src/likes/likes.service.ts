@@ -1,41 +1,37 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Like } from '../entities';
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class LikesService {
-  constructor(
-    @InjectRepository(Like)
-    private readonly likeRepo: Repository<Like>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async toggle(blogId: string, userId: string) {
-    const existing = await this.likeRepo.findOne({
-      where: { blogId, userId },
+    const existing = await this.prisma.like.findUnique({
+      where: { blogId_userId: { blogId, userId } },
     });
+
     if (existing) {
-      await this.likeRepo.remove(existing);
-      return { liked: false, count: await this.getCount(blogId) };
+      await this.prisma.like.delete({ where: { id: existing.id } });
+      const count = await this.prisma.like.count({ where: { blogId } });
+      return { liked: false, count };
     }
-    const like = this.likeRepo.create({ blogId, userId });
-    await this.likeRepo.save(like);
-    return { liked: true, count: await this.getCount(blogId) };
+
+    await this.prisma.like.create({ data: { blogId, userId } });
+    const count = await this.prisma.like.count({ where: { blogId } });
+    return { liked: true, count };
   }
 
   async getStatus(blogId: string, userId?: string) {
-    const count = await this.getCount(blogId);
+    const count = await this.prisma.like.count({ where: { blogId } });
     let liked = false;
+
     if (userId) {
-      const existing = await this.likeRepo.findOne({
-        where: { blogId, userId },
+      const existing = await this.prisma.like.findUnique({
+        where: { blogId_userId: { blogId, userId } },
       });
       liked = !!existing;
     }
-    return { liked, count };
-  }
 
-  private async getCount(blogId: string): Promise<number> {
-    return this.likeRepo.count({ where: { blogId } });
+    return { liked, count };
   }
 }

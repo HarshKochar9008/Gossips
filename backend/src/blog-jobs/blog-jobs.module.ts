@@ -6,4 +6,3 @@ import { BlogSummaryService } from './blog-summary.service';
   exports: [BlogSummaryService],
 })
 export class BlogJobsModule {}
-
