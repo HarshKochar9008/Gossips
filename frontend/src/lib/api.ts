@@ -56,7 +56,7 @@ class ApiClient {
     }
 
     const text = await response.text();
-    return text ? JSON.parse(text) : undefined;
+    return (text ? JSON.parse(text) : undefined) as T;
   }
 
   get<T>(endpoint: string, options?: FetchOptions) {
