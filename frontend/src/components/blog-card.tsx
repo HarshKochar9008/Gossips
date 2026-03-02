@@ -3,16 +3,19 @@
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import type { Blog } from '@/lib/types';
+import { FALLBACK_AVATAR, getAvatarUrlForUser } from '@/lib/avatars';
 
 export function BlogCard({ blog }: { blog: Blog }) {
+  const avatarSrc = getAvatarUrlForUser(blog.author?.name) || FALLBACK_AVATAR;
+
   return (
-    <Link href={`/blog/${blog.slug}`} className="block">
-      <article className="card group">
-        <div className="flex items-center gap-2 mb-3">
+    <Link href={`/blog/${blog.slug}`} className="block group">
+      <article className="card group transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-[var(--color-primary)]/20">
+        <div className="mb-3 flex items-center gap-2">
           <img
-            src="/default-avatar.svg"
-            alt={blog.author?.name || 'User'}
-            className="w-8 h-8 rounded-full shrink-0"
+            src={avatarSrc}
+            alt={blog.author?.name || 'User avatar'}
+            className="h-8 w-8 shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-bg-secondary)] object-cover transition-transform duration-200 group-hover:scale-105"
           />
           <div className="min-w-0">
             <span className="text-sm font-medium">{blog.author?.name || blog.author?.email}</span>
@@ -27,7 +30,7 @@ export function BlogCard({ blog }: { blog: Blog }) {
           </div>
         </div>
 
-        <h2 className="text-xl font-bold mb-2 group-hover:text-[var(--color-primary)] transition-colors">
+        <h2 className="text-xl font-bold mb-2 group-hover:text-[var(--color-primary)] transition-colors duration-200">
           {blog.title}
         </h2>
 
@@ -38,7 +41,7 @@ export function BlogCard({ blog }: { blog: Blog }) {
         )}
 
         <div className="flex items-center gap-4 text-sm text-[var(--color-text-secondary)]">
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 transition-colors group-hover:text-[var(--color-accent)]">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"

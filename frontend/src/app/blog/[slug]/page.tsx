@@ -90,8 +90,8 @@ export default function BlogDetailPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12 animate-fade-in-up">
-      <article>
+    <div className="max-w-3xl mx-auto px-4 py-12">
+      <article className="animate-fade-in-up">
         <header className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold mb-4">{blog.title}</h1>
 
@@ -147,7 +147,7 @@ export default function BlogDetailPage() {
         </div>
       </article>
 
-      <section>
+      <section className="animate-slide-up animate-delay-200">
         <h2 className="text-xl font-bold mb-6">Comments</h2>
 
         <CommentForm blogId={blog.id} onCommentAdded={handleCommentAdded} />

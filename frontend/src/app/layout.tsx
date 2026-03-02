@@ -3,8 +3,8 @@ import './globals.css';
 import { Navbar } from '@/components/navbar';
 
 export const metadata: Metadata = {
-  title: 'Zodex - Blog Platform',
-  description: 'A modern, secure blogging platform',
+  title: 'Gossipps  - Best blog of the week',
+  description: 'Discover the best blogs on travel, health, lifestyle, and more. Read, share, and join the conversation.',
 };
 
 export default function RootLayout({

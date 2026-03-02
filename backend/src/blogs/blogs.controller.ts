@@ -24,7 +24,7 @@ import { Throttle } from '@nestjs/throttler';
 export class BlogsController {
   constructor(private readonly blogsService: BlogsService) {}
 
-  // ---- Public Routes ----
+  
 
   @Get('public/feed')
   @Throttle({ default: { ttl: 60_000, limit: 60 } })
@@ -45,7 +45,7 @@ export class BlogsController {
     return this.blogsService.getPublicBlogBySlug(slug, user?.sub);
   }
 
-  // ---- Protected Dashboard Routes ----
+  
 
   @Get('dashboard/blogs')
   @UseGuards(AuthGuard('jwt'))

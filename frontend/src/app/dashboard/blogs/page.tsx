@@ -58,10 +58,10 @@ export default function BlogListPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-12 animate-fade-in-up">
-      <div className="flex items-center justify-between mb-8">
+    <div className="max-w-5xl mx-auto px-4 py-12">
+      <div className="flex items-center justify-between mb-8 animate-fade-in-up">
         <h1 className="text-3xl font-bold">My Blogs</h1>
-        <Link href="/dashboard/blogs/new" className="btn-primary">
+        <Link href="/dashboard/blogs/new" className="btn-primary transition-all duration-200 hover:scale-105">
           New Blog
         </Link>
       </div>
@@ -76,18 +76,22 @@ export default function BlogListPage() {
           ))}
         </div>
       ) : blogs.length === 0 ? (
-        <div className="text-center py-16 card">
+        <div className="text-center py-16 card animate-scale-in">
           <p className="text-lg text-[var(--color-text-secondary)] mb-4">
             No blogs yet. Start writing!
           </p>
-          <Link href="/dashboard/blogs/new" className="btn-primary">
+          <Link href="/dashboard/blogs/new" className="btn-primary transition-all duration-200 hover:scale-105">
             Create Blog
           </Link>
         </div>
       ) : (
         <div className="space-y-3">
-          {blogs.map((blog) => (
-            <div key={blog.id} className="card">
+          {blogs.map((blog, i) => (
+            <div
+              key={blog.id}
+              className="card animate-slide-up transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+              style={{ animationDelay: `${i * 50}ms` }}
+            >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-lg truncate">{blog.title}</h3>
